@@ -1,0 +1,13 @@
+zuul:
+  prefix: /api
+  ignoredServices: '*'
+  routes:
+    otp:
+      path: /otp/**
+      stripPrefix: false
+    user:
+      path: /user/**
+      stripPrefix: false
+logging:
+  level:
+    org.springframework.cloud.netflix: INFO
