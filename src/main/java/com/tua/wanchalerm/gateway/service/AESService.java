@@ -17,16 +17,20 @@ import java.util.Base64;
 @Slf4j
 public class AESService {
 
-    public String decrypt(String cipherText, String key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException, UnsupportedEncodingException {
-
+    public String decrypt(String cipherText, String key)  {
         val secretKey = getKey(key);
-        val decryptCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-        decryptCipher.init(Cipher.DECRYPT_MODE, secretKey);
+        Cipher decryptCipher = null;
+        try {
+            decryptCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+            decryptCipher.init(Cipher.DECRYPT_MODE, secretKey);
 
-        byte[] v = org.apache.commons.codec.binary.Base64.decodeBase64(cipherText);
-        byte[] decodedByte = decryptCipher.doFinal(v);
-        return new String(decodedByte);
-
+            byte[] v = org.apache.commons.codec.binary.Base64.decodeBase64(cipherText);
+            byte[] decodedByte = decryptCipher.doFinal(v);
+            return new String(decodedByte);
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
+            log.error("Error decrypt", e);
+            return null;
+        }
     }
 
     public String encrypt(String strToEncrypt, String secret)
