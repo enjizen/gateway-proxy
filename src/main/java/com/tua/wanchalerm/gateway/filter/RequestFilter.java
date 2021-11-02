@@ -4,7 +4,10 @@ import com.netflix.zuul.ZuulFilter;
 import com.netflix.zuul.context.RequestContext;
 import com.netflix.zuul.exception.ZuulException;
 import com.netflix.zuul.http.ServletInputStreamWrapper;
+import com.tua.wanchalerm.gateway.model.document.EndpointDocument;
 import com.tua.wanchalerm.gateway.service.AESService;
+import com.tua.wanchalerm.gateway.service.EndpointService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.apache.commons.io.IOUtils;
@@ -23,7 +26,11 @@ import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 public class RequestFilter extends ZuulFilter {
 
     @Autowired
+    private EndpointService endpointService;
+
+    @Autowired
     private AESService aesService;
+
 
     @Override
     public String filterType() {
@@ -56,40 +63,36 @@ public class RequestFilter extends ZuulFilter {
                 val writer = new StringWriter();
                 IOUtils.copy(request.getInputStream(), writer, request.getCharacterEncoding());
                 log.info("Body {}", writer);
-               val requestBody = aesService.decrypt(writer.toString(), aesKey);
+                val requestBody = aesService.decrypt(writer.toString(), aesKey);
 
-               log.info("Body decrypt {}", requestBody);
+                log.info("Body decrypt {}", requestBody);
 
-               val reqBodyBytes = requestBody.getBytes();
+                val reqBodyBytes = requestBody.getBytes();
 
+                ctx.setRequest(new HttpServletRequestWrapper(request) {
 
-               ctx.setRequest(new HttpServletRequestWrapper(request) {
+                    @Override
+                    public ServletInputStream getInputStream() {
+                        return new ServletInputStreamWrapper(reqBodyBytes);
+                    }
 
-                   @Override
-                   public ServletInputStream getInputStream() throws IOException {
-                       return new ServletInputStreamWrapper(reqBodyBytes);
-                   }
+                    @Override
+                    public int getContentLength() {
+                        return reqBodyBytes.length;
+                    }
 
-                   @Override
-                   public int getContentLength() {
-                       return reqBodyBytes.length;
-                   }
+                    @Override
+                    public long getContentLengthLong() {
+                        return reqBodyBytes.length;
+                    }
 
-                   @Override
-                   public long getContentLengthLong() {
-                       return reqBodyBytes.length;
-                   }
-
-               } );
-
-
-
-            } catch (IOException e) {
-                throw new ZuulException(e, INTERNAL_SERVER_ERROR.value(), e.getMessage());
+                });
+            } catch (Exception e) {
+                log.error("Request filter exception", e);
+                ctx.set("throwable", new ZuulException(e, INTERNAL_SERVER_ERROR.value(), e.getMessage()));
             }
         }
-
-        log.info(String.format("%s request %s", request.getMethod(), request.getRequestURL().toString()));
+        log.info("{} request {}", request.getMethod(), request.getRequestURL().toString());
         return null;
     }
 }
